@@ -43,6 +43,17 @@ app.post('/enviar', (req, res) => {
   res.send('¡Formulario enviado correctamente y datos guardados en el servidor!');
 });
 
+// Ruta para descargar el archivo Excel
+app.get('/descargar', (req, res) => {
+  const filePath = path.join(__dirname, 'uploads', 'datos.xlsx');
+  res.download(filePath, 'datos.xlsx', (err) => {
+    if (err) {
+      console.error('Error al descargar el archivo:', err);
+      res.status(500).send('Error al descargar el archivo');
+    }
+  });
+});
+
 // Iniciar el servidor
 app.listen(port, () => {
   console.log(`Servidor escuchando en el puerto ${port}`);
