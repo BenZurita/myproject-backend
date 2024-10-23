@@ -1,7 +1,8 @@
 const express = require('express');
 const bodyParser = require('body-parser');
-const sqlite3 = require('sqlite3').verbose();
+const fs = require('fs');
 const path = require('path');
+const sqlite3 = require('sqlite3').verbose();
 const app = express();
 const port = process.env.PORT || 3000;
 
@@ -42,6 +43,17 @@ app.post('/enviar', (req, res) => {
       res.status(500).send('Error al insertar los datos');
     } else {
       res.send('¡Formulario enviado correctamente y datos guardados en la base de datos!');
+    }
+  });
+});
+
+// Ruta para descargar la base de datos
+app.get('/descargar-db', (req, res) => {
+  const filePath = path.join(__dirname, 'database.db');
+  res.download(filePath, 'database.db', (err) => {
+    if (err) {
+      console.error('Error al descargar el archivo:', err);
+      res.status(500).send('Error al descargar el archivo');
     }
   });
 });
