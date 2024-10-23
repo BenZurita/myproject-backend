@@ -1,10 +1,30 @@
 const express = require('express');
 const bodyParser = require('body-parser');
-const fs = require('fs');
+const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
-const XLSX = require('xlsx');
 const app = express();
 const port = process.env.PORT || 3000;
+
+// Conectar a la base de datos SQLite
+const dbPath = path.join(__dirname, 'database.db');
+const db = new sqlite3.Database(dbPath, (err) => {
+  if (err) {
+    console.error('Error al conectar a la base de datos:', err);
+  } else {
+    console.log('Conectado a la base de datos SQLite');
+  }
+});
+
+// Crear la tabla si no existe
+db.run(`CREATE TABLE IF NOT EXISTS datos (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT,
+  apellido TEXT,
+  Telefono TEXT,
+  email TEXT,
+  especialidad TEXT,
+  estado TEXT
+)`);
 
 // Middleware para parsear JSON y datos de formularios
 app.use(bodyParser.json());
@@ -14,42 +34,14 @@ app.use(bodyParser.urlencoded({ extended: true }));
 app.post('/enviar', (req, res) => {
   const { name, apellido, Telefono, email, especialidad, estado } = req.body;
 
-  // Ruta del archivo Excel
-  const filePath = path.join(__dirname, 'uploads', 'datos.xlsx');
-
-  let workbook;
-  let worksheet;
-
-  // Verificar si el archivo Excel ya existe
-  if (fs.existsSync(filePath)) {
-    // Leer el archivo Excel existente
-    workbook = XLSX.readFile(filePath);
-    worksheet = workbook.Sheets[workbook.SheetNames[0]];
-  } else {
-    // Crear un nuevo libro y hoja de cálculo
-    workbook = XLSX.utils.book_new();
-    worksheet = XLSX.utils.aoa_to_sheet([["Nombre", "Apellido", "Teléfono", "Email", "Especialidad", "Estado"]]);
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Sheet1");
-  }
-
-  // Agregar una nueva fila con los datos del formulario
-  const newRow = [name, apellido, Telefono, email, especialidad, estado];
-  XLSX.utils.sheet_add_aoa(worksheet, [newRow], { origin: -1 });
-
-  // Guardar el archivo Excel actualizado
-  XLSX.writeFile(workbook, filePath);
-
-  // Responder al cliente
-  res.send('¡Formulario enviado correctamente y datos guardados en el servidor!');
-});
-
-// Ruta para descargar el archivo Excel
-app.get('/descargar', (req, res) => {
-  const filePath = path.join(__dirname, 'uploads', 'datos.xlsx');
-  res.download(filePath, 'datos.xlsx', (err) => {
+  // Insertar los datos en la base de datos
+  const query = `INSERT INTO datos (name, apellido, Telefono, email, especialidad, estado) VALUES (?, ?, ?, ?, ?, ?)`;
+  db.run(query, [name, apellido, Telefono, email, especialidad, estado], function(err) {
     if (err) {
-      console.error('Error al descargar el archivo:', err);
-      res.status(500).send('Error al descargar el archivo');
+      console.error('Error al insertar los datos:', err);
+      res.status(500).send('Error al insertar los datos');
+    } else {
+      res.send('¡Formulario enviado correctamente y datos guardados en la base de datos!');
     }
   });
 });
