@@ -1,64 +1,47 @@
-const express = require('express');
-const bodyParser = require('body-parser');
 const fs = require('fs');
-const path = require('path');
-const sqlite3 = require('sqlite3').verbose();
+const express = require('express');
+const createCsvWriter = require('csv-writer').createObjectCsvWriter;
 const app = express();
-const port = process.env.PORT || 3000;
+app.use(express.json());
 
-// Conectar a la base de datos SQLite
-const dbPath = path.join(__dirname, 'database.db');
-const db = new sqlite3.Database(dbPath, (err) => {
-  if (err) {
-    console.error('Error al conectar a la base de datos:', err);
-  } else {
-    console.log('Conectado a la base de datos SQLite');
-  }
+const csvWriter = createCsvWriter({
+    path: 'data.csv',
+    header: [
+        { id: 'name', title: 'Nombre' },
+        { id: 'apellido', title: 'Apellido' },
+        { id: 'Telefono', title: 'Teléfono' },
+        { id: 'email', title: 'Email' },
+        { id: 'especialidad', title: 'Especialidad' },
+        { id: 'estado', title: 'Estado' }
+    ],
+    append: true
 });
 
-// Crear la tabla si no existe
-db.run(`CREATE TABLE IF NOT EXISTS datos (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  name TEXT,
-  apellido TEXT,
-  Telefono TEXT,
-  email TEXT,
-  especialidad TEXT,
-  estado TEXT
-)`);
-
-// Middleware para parsear JSON y datos de formularios
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
-
-// Ruta para manejar el envío del formulario
 app.post('/enviar', (req, res) => {
-  const { name, apellido, Telefono, email, especialidad, estado } = req.body;
+    const data = [req.body];
+    csvWriter.writeRecords(data)
+        .then(() => res.send('Datos guardados en data.csv'))
+        .catch((err) => res.status(500).send(err));
+});
 
-  // Insertar los datos en la base de datos
-  const query = `INSERT INTO datos (name, apellido, Telefono, email, especialidad, estado) VALUES (?, ?, ?, ?, ?, ?)`;
-  db.run(query, [name, apellido, Telefono, email, especialidad, estado], function(err) {
-    if (err) {
-      console.error('Error al insertar los datos:', err);
-      res.status(500).send('Error al insertar los datos');
-    } else {
-      res.send('¡Formulario enviado correctamente y datos guardados en la base de datos!');
+// Ruta para descargar el archivo CSV con autenticación
+app.get('/descargar', (req, res) => {
+    const secret = req.query.secret;
+    const expectedSecret = 'OftalmiBD'; // Cambia esto por una clave secreta segura
+
+    if (secret !== expectedSecret) {
+        return res.status(403).send('Acceso denegado');
     }
-  });
+
+    const file = `${__dirname}/data.csv`;
+    res.download(file, 'data.csv', (err) => {
+        if (err) {
+            res.status(500).send({
+                message: "Error al descargar el archivo.",
+                error: err.message
+            });
+        }
+    });
 });
 
-// Ruta para descargar la base de datos
-app.get('/descargar-db', (req, res) => {
-  const filePath = path.join(__dirname, 'database.db');
-  res.download(filePath, 'database.db', (err) => {
-    if (err) {
-      console.error('Error al descargar el archivo:', err);
-      res.status(500).send('Error al descargar el archivo');
-    }
-  });
-});
-
-// Iniciar el servidor
-app.listen(port, () => {
-  console.log(`Servidor escuchando en el puerto ${port}`);
-});
+app.listen(3000, () => console.log('Servidor escuchando en el puerto 3000'));
